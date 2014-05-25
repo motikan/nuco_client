@@ -1,23 +1,25 @@
 package com.example.http_post;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.List;
-import java.util.Scanner;
 
 import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.http.entity.mime.content.FileBody;
 
 import android.app.Activity;
-import android.os.Build;
+import android.hardware.Camera;
+import android.hardware.Camera.Size;
+import android.media.MediaRecorder;
 import android.os.Bundle;
-import android.os.Environment;
 import android.util.Log;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup.LayoutParams;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -27,15 +29,68 @@ public class MainActivity extends Activity implements OnClickListener {
 	private Button btn = null;
 	private TextView tv = null;
 	
+	private Camera myCamera;
+	private SurfaceView mySurfaceView;
+	private TextView textView1;
+	private Button button1;
+	private boolean isRecording;
+	private MediaRecorder mediaRecorder;
+	private SurfaceHolder v_holder;
+	
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		setContentView(R.layout.activity_main);
 		
 		btn = (Button)findViewById(R.id.btn1);
 		tv = (TextView)findViewById(R.id.tv1);
 		
+		mySurfaceView = (SurfaceView) findViewById(R.id.surfaceView1);
+		textView1 = (TextView) findViewById(R.id.textView1);
+		textView1.setText("hello!!!");
+		button1 = (Button) findViewById(R.id.button1);
+		button1.setOnClickListener(new View.OnClickListener() {
+			
+			@Override
+			public void onClick(View v) {
+				 // 録画中でなければ録画を開始
+				  textView1.setText("REC");
+				  if (!isRecording) {
+					  initializeVideoSettings(); // MediaRecorderの設定
+					  mediaRecorder.start(); // 録画開始
+					  isRecording = true; // 録画中のフラグを立てる
+					  // 録画中であれば録画を停止
+				  } else {
+					  mediaRecorder.stop(); // 録画停止
+					  mediaRecorder.reset(); // 無いとmediarecorder went away with unhandled
+					  // events　が発生
+					  mediaRecorder.release();
+					  mediaRecorder = null;
+					  myCamera.lock();
+					  //myCamera.release(); // release the camera for other applications
+					  //myCamera = null;
+					  isRecording = false; // 録画中のフラグを外す
+					  textView1.setText("STOP");
+				  }
+			}
+		});
+		
 		btn.setOnClickListener(this);
+		
+		SurfaceHolder holder = mySurfaceView.getHolder();
+		holder.addCallback(mSurfaceListener);
+		holder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+		
+		//myCamera = getCameraInstance();
+		try {
+			  myCamera = Camera.open(0); // attempt to get a Camera instance
+		  }catch (Exception e){
+			  Log.d("test", "------------------------");
+			  Log.d("test", e.getMessage());
+			  Log.d("test", "------------------------");
+			  // Camera is not available (in use or does not exist)
+		  }
 	}
 	
 	@Override
@@ -70,7 +125,7 @@ public class MainActivity extends Activity implements OnClickListener {
 		
 		try{
 			MultipartEntity multipartEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
-			File file = new File(getMount_sd(), "test.mp4");    
+			File file = new File(getApplicationInfo().dataDir, "test.mp4");    
 		    FileBody fileBody = new FileBody(file, "image/png"); 
 			multipartEntity.addPart("upfile", fileBody);
 			task.addPostMultiParam(multipartEntity);
@@ -85,88 +140,94 @@ public class MainActivity extends Activity implements OnClickListener {
 	
 	}
 	
-	private String getMount_sd() {
-		   List<String> mountList = new ArrayList<String>();
-		   String mount_sdcard = null;
-
-		   Scanner scanner = null;
-		   try {
-		      // システム設定ファイルにアクセス
-		      File vold_fstab = new File("/system/etc/vold.fstab");
-		      scanner = new Scanner(new FileInputStream(vold_fstab));
-		      // 一行ずつ読み込む
-		      while (scanner.hasNextLine()) {
-		         String line = scanner.nextLine();
-		         // dev_mountまたはfuse_mountで始まる行の
-		         if (line.startsWith("dev_mount") || line.startsWith("fuse_mount")) {	            	
-		            // 半角スペースではなくタブで区切られている機種もあるらしいので修正して
-		            // 半角スペース区切り３つめ（path）を取得
-		            String path = line.replaceAll("\t", " ").split(" ")[2];
-		            // 取得したpathを重複しないようにリストに登録
-		            if (!mountList.contains(path)){
-		               mountList.add(path);
-		            }
-		         }
-		      }
-		   } catch (FileNotFoundException e) {
-		      throw new RuntimeException(e);
-		   } finally {
-		      if (scanner != null) {
-		         scanner.close();
-		      }
-		   }
-
-		   // Environment.isExternalStorageRemovable()はGINGERBREAD以降しか使えない
-		   if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD){	    	
-		      // getExternalStorageDirectory()が罠であれば、そのpathをリストから除外
-		      if (!Environment.isExternalStorageRemovable()) {   // 注1
-		         mountList.remove(Environment.getExternalStorageDirectory().getPath());
-		      }
-		   }
-
-		   // マウントされていないpathは除外
-		   for (int i = 0; i < mountList.size(); i++) {
-		      if (!isMounted(mountList.get(i))){
-		         mountList.remove(i--);
-		      }
-		   }
-
-		   // 除外されずに残ったものがSDカードのマウント先
-		   if(mountList.size() > 0){
-		      mount_sdcard = mountList.get(0);
-		   }
-			    
-		   // マウント先をreturn（全て除外された場合はnullをreturn）
-		   return mount_sdcard;
+	private SurfaceHolder.Callback mSurfaceListener = new SurfaceHolder.Callback() {
+		public void surfaceCreated(SurfaceHolder holder) {
+			// TODO Auto-generated method stub
+			try {
+			myCamera.setPreviewDisplay(holder);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
-
-		// 引数に渡したpathがマウントされているかどうかチェックするメソッド
-		public boolean isMounted(String path) {
-		   boolean isMounted = false;
-
-		   Scanner scanner = null;
-		   try {
-		      // マウントポイントを取得する
-		      File mounts = new File("/proc/mounts");   // 注2
-		      scanner = new Scanner(new FileInputStream(mounts));
-		      // マウントポイントに該当するパスがあるかチェックする
-		      while (scanner.hasNextLine()) {
-		         if (scanner.nextLine().contains(path)) {
-		            // 該当するパスがあればマウントされているってこと
-		            isMounted = true;
-		            break;
-		         }
-		      }
-		   } catch (FileNotFoundException e) {
-		      throw new RuntimeException(e);
-		   } finally {
-		      if (scanner != null) {
-		      scanner.close();
-		      }
-		   }
-
-		   // マウント状態をreturn
-		   return isMounted;
+		
+		public void surfaceDestroyed(SurfaceHolder holder) {
+			myCamera.setPreviewCallback(null);
+			myCamera.stopPreview();
+			myCamera.release();
+			myCamera = null;
 		}
+		
+		public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+			// TODO Auto-generated method stub
+			v_holder = holder; // SurfaceHolderを保存
+			
+			myCamera.stopPreview();
+			Camera.Parameters parameters = myCamera.getParameters();
+			
+			List<Size> asizeSupport = parameters.getSupportedPreviewSizes();
+			
+			//一番小さいプレビューサイズを利用
+			Size size = asizeSupport.get(asizeSupport.size() - 1);
+			parameters.setPreviewSize(size.width, size.height);
+			Log.d("size1", "w=" + String.valueOf(width) + "h=" + String.valueOf(height));
+			Log.d("size2", "w=" + String.valueOf(size.width) + "h=" + String.valueOf(size.height));
+			LayoutParams paramLayout = mySurfaceView.getLayoutParams();
+			paramLayout.width = size.width;
+			paramLayout.height = size.height;
+			//mySurfaceView.setLayoutParams(paramLayout);
+			//myCamera.setDisplayOrientation(90);// カメラを回転
+			
+			//List<Camera.Size> size = parameters.getSupportedPreviewSizes();
+			//Log.d("カメラのサイズ", "w=" + String.valueOf(size.get(0).width) + "h=" + String.valueOf(size.get(0).height));// 
+			//parameters.setPreviewSize(size.get(0).width, size.get(0).height);
+			// myCamera.setParameters(parameters);
+			myCamera.startPreview();
+		}
+	};
+		  
+		  public void click(View v) {
+			 
+		  }
+		  
+		  private void initializeVideoSettings() {
+			  // TODO 自動生成されたメソッド・スタブ
+			  try {
+				  //myCamera = getCameraInstance();
+				  mediaRecorder = new MediaRecorder();
+				  
+				  myCamera.unlock();
+				  mediaRecorder.setCamera( myCamera );
+				  
+				  mediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
+				  mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+				  
+				  mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT); // ファイルフォーマットを指定
+				  
+				  mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264); // ビデオエンコーダを指定
+				  mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
+				  
+				  //CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH);
+				  //mediaRecorder.setProfile(profile);
+				  
+				  mediaRecorder.setVideoFrameRate(15); // 動画のフレームレートを指定
+				  mediaRecorder.setVideoSize(640, 480); // 動画のサイズを指定
+				  
+				  if(getApplicationInfo().dataDir != null){
+					  File file = new File(getApplicationInfo().dataDir, "test.mp4");
+					  
+					  mediaRecorder.setOutputFile(file.getAbsolutePath());
+					  Log.d("Path", file.getAbsolutePath());
+					  mediaRecorder.setPreviewDisplay(v_holder.getSurface());
+					  
+					  mediaRecorder.prepare();
+				  }else{
+					  Log.d("test", "no sd");
+				  }
+				  //mediaRecorder.start();
+			  } catch (IOException e) {
+				  // TODO 自動生成された catch ブロック
+				  e.printStackTrace();
+			  }
+		  }
 
 }
