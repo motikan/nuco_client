@@ -4,10 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.http.entity.mime.HttpMultipartMode;
-import org.apache.http.entity.mime.MultipartEntity;
-import org.apache.http.entity.mime.content.FileBody;
-
 import android.app.Activity;
 import android.hardware.Camera;
 import android.hardware.Camera.Size;
@@ -26,6 +22,9 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity implements OnClickListener {
 	
+	private String userName = null;
+	private String videoName = null;
+	
 	private Button btn = null;
 	private TextView tv = null;
 	
@@ -43,12 +42,10 @@ public class MainActivity extends Activity implements OnClickListener {
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		setContentView(R.layout.activity_main);
 		
-		btn = (Button)findViewById(R.id.btn1);
-		tv = (TextView)findViewById(R.id.tv1);
-		
-		mySurfaceView = (SurfaceView) findViewById(R.id.surfaceView1);
 		textView1 = (TextView) findViewById(R.id.textView1);
 		textView1.setText("hello!!!");
+		btn = (Button)findViewById(R.id.btn1);
+		tv = (TextView)findViewById(R.id.tv1);
 		button1 = (Button) findViewById(R.id.button1);
 		button1.setOnClickListener(new View.OnClickListener() {
 			
@@ -77,67 +74,20 @@ public class MainActivity extends Activity implements OnClickListener {
 		});
 		
 		btn.setOnClickListener(this);
-		
+		mySurfaceView = (SurfaceView) findViewById(R.id.surfaceView1);
 		SurfaceHolder holder = mySurfaceView.getHolder();
 		holder.addCallback(mSurfaceListener);
 		holder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 		
 		//myCamera = getCameraInstance();
 		try {
-			  myCamera = Camera.open(0); // attempt to get a Camera instance
+			  myCamera = Camera.open(1); // attempt to get a Camera instance
 		  }catch (Exception e){
 			  Log.d("test", "------------------------");
 			  Log.d("test", e.getMessage());
 			  Log.d("test", "------------------------");
 			  // Camera is not available (in use or does not exist)
 		  }
-	}
-	
-	@Override
-	public void onClick(View v) {
-		// ボタン押下時
-		if(v == btn){
-			exec_post();
-		}
-	}
-	
-	// POST通信を実行（AsyncTask）
-	@SuppressWarnings("deprecation")
-	private void exec_post() {
-		
-		// 非同期タスクを定義
-		HttpPostTask task = new HttpPostTask(this, "http://oncetec.sub.jp/php/011/index2.php", new HttpPostHandler(){
-			public void onPostCompleted(String response) {
-				// 受信結果をUIに表示
-				tv.setText( response );
-				Log.d("response", response);
-			}
-			
-			@Override
-			public void onPostFailed(String response) {
-				tv.setText( response );
-				Toast.makeText(getApplicationContext(), "エラーが発生しました。", Toast.LENGTH_LONG).show();
-			}
-		});
-		
-		task.addPostParam( "post_1", "ユーザID" );
-		task.addPostParam( "post_2", "パスワード" );
-		
-		try{
-			MultipartEntity multipartEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
-			File file = new File(getApplicationInfo().dataDir, "test.mp4");    
-		    FileBody fileBody = new FileBody(file, "image/png"); 
-			multipartEntity.addPart("upfile", fileBody);
-			task.addPostMultiParam(multipartEntity);
-		}catch(Exception e){
-			Log.d("test", "-------------------------");
-			Log.d("test", e.getMessage());
-			Log.d("test", "-------------------------");
-		}
-		
-		// タスクを開始
-		task.execute();
-	
 	}
 	
 	private SurfaceHolder.Callback mSurfaceListener = new SurfaceHolder.Callback() {
@@ -167,7 +117,7 @@ public class MainActivity extends Activity implements OnClickListener {
 			List<Size> asizeSupport = parameters.getSupportedPreviewSizes();
 			
 			//一番小さいプレビューサイズを利用
-			Size size = asizeSupport.get(asizeSupport.size() - 1);
+			Size size = asizeSupport.get(asizeSupport.size() - 4);
 			parameters.setPreviewSize(size.width, size.height);
 			Log.d("size1", "w=" + String.valueOf(width) + "h=" + String.valueOf(height));
 			Log.d("size2", "w=" + String.valueOf(size.width) + "h=" + String.valueOf(size.height));
@@ -175,7 +125,7 @@ public class MainActivity extends Activity implements OnClickListener {
 			paramLayout.width = size.width;
 			paramLayout.height = size.height;
 			//mySurfaceView.setLayoutParams(paramLayout);
-			//myCamera.setDisplayOrientation(90);// カメラを回転
+			myCamera.setDisplayOrientation(90);	// カメラを回転
 			
 			//List<Camera.Size> size = parameters.getSupportedPreviewSizes();
 			//Log.d("カメラのサイズ", "w=" + String.valueOf(size.get(0).width) + "h=" + String.valueOf(size.get(0).height));// 
@@ -184,50 +134,91 @@ public class MainActivity extends Activity implements OnClickListener {
 			myCamera.startPreview();
 		}
 	};
-		  
-		  public void click(View v) {
-			 
-		  }
-		  
-		  private void initializeVideoSettings() {
-			  // TODO 自動生成されたメソッド・スタブ
-			  try {
-				  //myCamera = getCameraInstance();
-				  mediaRecorder = new MediaRecorder();
-				  
-				  myCamera.unlock();
-				  mediaRecorder.setCamera( myCamera );
-				  
-				  mediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
-				  mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-				  
-				  mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT); // ファイルフォーマットを指定
-				  
-				  mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264); // ビデオエンコーダを指定
-				  mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
-				  
-				  //CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH);
-				  //mediaRecorder.setProfile(profile);
-				  
-				  mediaRecorder.setVideoFrameRate(15); // 動画のフレームレートを指定
-				  mediaRecorder.setVideoSize(640, 480); // 動画のサイズを指定
-				  
-				  if(getApplicationInfo().dataDir != null){
-					  File file = new File(getApplicationInfo().dataDir, "test.mp4");
-					  
-					  mediaRecorder.setOutputFile(file.getAbsolutePath());
-					  Log.d("Path", file.getAbsolutePath());
-					  mediaRecorder.setPreviewDisplay(v_holder.getSurface());
-					  
-					  mediaRecorder.prepare();
-				  }else{
-					  Log.d("test", "no sd");
-				  }
-				  //mediaRecorder.start();
-			  } catch (IOException e) {
-				  // TODO 自動生成された catch ブロック
-				  e.printStackTrace();
-			  }
-		  }
+	
+	private void initializeVideoSettings() {
+		// TODO 自動生成されたメソッド・スタブ
+		try {
+			//myCamera = getCameraInstance();
+			mediaRecorder = new MediaRecorder();
+			
+			myCamera.unlock();
+			mediaRecorder.setCamera(myCamera);
+			
+			mediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
+			mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+			
+			mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4); // ファイルフォーマットを指定
+			
+			mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264); // ビデオエンコーダを指定
+			mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
+			
+			mediaRecorder.setOrientationHint(270);
+			mediaRecorder.setVideoFrameRate(15); // 動画のフレームレートを指定
+			mediaRecorder.setVideoSize(320, 240); // 動画のサイズを指定
+			
+			//CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_720P);
+			//mediaRecorder.setProfile(profile);
+			
+			if(getApplicationInfo().dataDir != null){
+				videoName = RandomStringUtils.randomAlphabetic(20);
+				File file = new File(getApplicationInfo().dataDir, videoName + ".mp4");
+				
+				mediaRecorder.setOutputFile(file.getAbsolutePath());
+				Log.d("Path", file.getAbsolutePath());
+				mediaRecorder.setPreviewDisplay(v_holder.getSurface());
+				mediaRecorder.prepare();
+			}else{
+				
+			}
+			//mediaRecorder.start();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@Override
+	public void onClick(View v) {
+		// ボタン押下時
+		if(v == btn){
+			exec_post();
+		}
+	}
+	
+	// POST通信を実行（AsyncTask）
+	private void exec_post() {
+		// 非同期タスクを定義
+		HttpPostTask task = new HttpPostTask(this, "http://nuconuco.com:81/create", new HttpPostHandler(){
+			
+			public void onPostCompleted(String response) {
+				// 受信結果をUIに表示
+				tv.setText( response );
+				Log.d("response", response);
+			}
+			
+			@Override
+			public void onPostFailed(String response) {
+				tv.setText( response );
+				Toast.makeText(getApplicationContext(), "エラーが発生しました。", Toast.LENGTH_LONG).show();
+			}
+		});
+		
+		// TODO userName を決める仕組みを作る。
+		userName = "山田太郎";
+				
+		task.addPostParam("userName", userName);
+		task.addPostParam("videoName", videoName);
+				
+		try{
+			File file = new File(getApplicationInfo().dataDir, videoName + ".mp4");    
+			task.addPostMultiParam(file);
+		}catch(Exception e){
+			Log.d("test", "-------------------------");
+			Log.d("test", e.getMessage());
+			Log.d("test", "-------------------------");
+		}
+				
+		// タスクを開始
+		task.execute();	
+	}
 
 }

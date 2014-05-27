@@ -11,14 +11,13 @@
     <!-- 通信を開始 -->
     <Button
         android:id="@+id/btn1"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentBottom="true"
         android:layout_height="wrap_content"
-        android:layout_width="300dp"
-        android:layout_marginTop="30dp"
-        android:layout_marginBottom="30dp"
-        android:padding="20dp"
+        android:layout_width="wrap_content"
         android:textSize="22dp"
-        android:text="btn_label"
-    ></Button>
+        android:text="送信">
+    </Button>
 
 
     <!-- 通信の結果を表示 -->
@@ -39,16 +38,20 @@
     
     <Button
         android:id="@+id/button1"
-        android:text="ボタン"
-        android:layout_margin="170dip"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentBottom="true"
+        android:text="撮影"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"/>
+        android:layout_height="wrap_content">
+    </Button>
     
     <SurfaceView
-          android:id="@+id/surfaceView1"
-          android:layout_width="fill_parent"
-          android:layout_height="300px">
-        </SurfaceView>
+        android:id="@+id/surfaceView1"
+        android:layout_centerInParent="true"
+        android:layout_alignParentTop="true"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content">
+    </SurfaceView>
     
 
 </RelativeLayout>

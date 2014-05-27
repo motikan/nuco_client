@@ -1,9 +1,11 @@
 package com.example.http_post;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,7 +17,10 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntity;
+import org.apache.http.entity.mime.content.FileBody;
+import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
@@ -47,6 +52,7 @@ public class HttpPostTask extends AsyncTask<Void, Void, Void> {
 	private ProgressDialog dialog = null;
 	
 	private MultipartEntity uploadFile = null;
+	MultipartEntity multipartEntity;
 	
 	
 	
@@ -57,6 +63,8 @@ public class HttpPostTask extends AsyncTask<Void, Void, Void> {
 		this.post_url = post_url;
 		this.ui_handler = ui_handler;
 		
+		multipartEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
+		
 		// 送信パラメータは初期化せず，new後にsetさせる
 		post_params = new ArrayList<NameValuePair>();
 	}
@@ -65,11 +73,15 @@ public class HttpPostTask extends AsyncTask<Void, Void, Void> {
 	
 	// 追加
 	public void addPostParam( String post_name, String post_value ){
-		post_params.add(new BasicNameValuePair( post_name, post_value ));
+		try{
+			this.multipartEntity.addPart(post_name, new StringBody(post_value, Charset.forName("UTF-8")));
+		}catch(UnsupportedEncodingException e){
+			
+		}
 	}
 	
-	public void addPostMultiParam(MultipartEntity uploadfile_tmp){
-		this.uploadFile = uploadfile_tmp;
+	public void addPostMultiParam(File videoFile){
+		this.multipartEntity.addPart("video", new FileBody(videoFile, "image/png"));
 	}
 	
 	/* --------------------- 処理本体 --------------------- */
@@ -136,11 +148,7 @@ public class HttpPostTask extends AsyncTask<Void, Void, Void> {
 		try {
 			// 送信パラメータのエンコードを指定
 			request.setEntity(new UrlEncodedFormEntity(post_params, request_encoding));
-			if(uploadFile != null){
-				request.setEntity(uploadFile);
-			}else{
-				Log.d("TEST", "HOGEHOGE");
-			}
+			request.setEntity(multipartEntity);
 		}catch (UnsupportedEncodingException e1){
 			e1.printStackTrace();
 			http_err_msg = "不正な文字コード";
